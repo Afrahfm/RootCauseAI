@@ -1,5 +1,4 @@
-import pkg from 'pg';
-const { Pool } = pkg;
+import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -7,155 +6,82 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config({ path: path.join(__dirname, '../../.env') });
+// Load .env from backend folder
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
-const realPool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgres://postgres:password@localhost:5432/real_problem_finder',
+console.log('Connecting to MySQL DB:', {
+    host: process.env.DB_HOST || 'localhost',
+    port: parseInt(process.env.DB_PORT) || 3307,
+    user: process.env.DB_USER || 'root',
+    database: process.env.DB_NAME || 'rootcauseai_db'
 });
 
-// In-memory fallback
-let dbOffline = true; // Assume offline by default since Docker failed
-const mockUsers = [];
-const mockAnalyses = [];
-let userIdCounter = 1;
-let analysisIdCounter = 1;
-
-realPool.on('error', (err) => {
-  console.error('Unexpected error on idle client (DB might be offline)', err.message);
-  dbOffline = true;
+// Create MySQL connection pool
+const realPool = mysql.createPool({
+    host: process.env.DB_HOST || 'localhost',
+    port: parseInt(process.env.DB_PORT) || 3307,
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || 'root',
+    database: process.env.DB_NAME || 'rootcauseai_db',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
 });
 
-// Create a dummy user for testing
-import bcrypt from 'bcrypt';
+// Test connection on startup
 (async () => {
-  const hash = await bcrypt.hash('Password123!', 10);
-  mockUsers.push({
-    id: 1,
-    email: 'test@example.com',
-    full_name: 'Test User',
-    password_hash: hash,
-    reset_token: null,
-    reset_token_expiry: null
-  });
-  
-  // Add professional demo user
-  const demoHash = await bcrypt.hash('demo123', 10);
-  mockUsers.push({
-    id: 999,
-    email: 'demo@rootcause.ai',
-    full_name: 'Demo User',
-    password_hash: demoHash,
-    reset_token: null,
-    reset_token_expiry: null
-  });
-  
-  userIdCounter = 1000;
+    try {
+        const connection = await realPool.getConnection();
+        console.log('✅ MySQL Database connected successfully');
+        connection.release();
+    } catch (err) {
+        console.error('❌ MySQL connection failed:', err.message);
+        console.error('Run: docker start rootcauseai-mysql');
+        process.exit(1);
+    }
 })();
 
-const mockQuery = async (text, params = []) => {
-  console.log('MOCK DB QUERY Fallback Used');
-  if (text.includes('INSERT INTO users')) {
-    const newUser = {
-      id: userIdCounter++,
-      email: params[0],
-      full_name: params[1],
-      password_hash: params[2],
-      reset_token: null,
-      reset_token_expiry: null
-    };
-    mockUsers.push(newUser);
-    return { rows: [newUser], rowCount: 1 };
-  }
-  
-  if (text.includes('SELECT * FROM users WHERE email')) {
-    const user = mockUsers.find(u => u.email === params[0]);
-    return { rows: user ? [user] : [], rowCount: user ? 1 : 0 };
-  }
-
-  if (text.includes('SELECT * FROM users WHERE id')) {
-    const user = mockUsers.find(u => u.id === params[0]);
-    return { rows: user ? [user] : [], rowCount: user ? 1 : 0 };
-  }
-  
-  if (text.includes('SELECT * FROM users WHERE reset_token')) {
-    const user = mockUsers.find(u => u.reset_token === params[0]);
-    return { rows: user ? [user] : [], rowCount: user ? 1 : 0 };
-  }
-
-  if (text.includes('UPDATE users SET reset_token')) {
-    const user = mockUsers.find(u => u.email === params[2]);
-    if (user) {
-      user.reset_token = params[0];
-      user.reset_token_expiry = params[1];
-    }
-    return { rowCount: user ? 1 : 0 };
-  }
-  
-  if (text.includes('UPDATE users SET password_hash')) {
-    const user = mockUsers.find(u => u.id === params[1] || u.id === params[3]);
-    if (user) {
-      user.password_hash = params[0];
-      user.reset_token = null;
-      user.reset_token_expiry = null;
-    }
-    return { rowCount: user ? 1 : 0 };
-  }
-
-  if (text.includes('INSERT INTO analyses')) {
-    const newAnalysis = {
-      id: analysisIdCounter++,
-      user_id: params[0],
-      user_input: params[1],
-      hidden_problem: params[2],
-      wrong_solution: params[3],
-      wrong_solution_cost: params[4],
-      right_solution: params[5],
-      right_solution_cost: params[6],
-      savings: params[7],
-      tech_stack: params[8],
-      created_at: new Date().toISOString()
-    };
-    mockAnalyses.push(newAnalysis);
-    return { rows: [newAnalysis], rowCount: 1 };
-  }
-
-  if (text.includes('SELECT * FROM analyses WHERE user_id')) {
-    const analyses = mockAnalyses.filter(a => a.user_id === params[0]).sort((a,b) => b.id - a.id);
-    return { rows: analyses, rowCount: analyses.length };
-  }
-  
-  if (text.includes('SELECT * FROM analyses WHERE id = $1 AND user_id = $2')) {
-    const analysis = mockAnalyses.find(a => a.id === parseInt(params[0]) && a.user_id === params[1]);
-    return { rows: analysis ? [analysis] : [], rowCount: analysis ? 1 : 0 };
-  }
-
-  if (text.includes('DELETE FROM analyses')) {
-    const index = mockAnalyses.findIndex(a => a.id === parseInt(params[0]) && a.user_id === params[1]);
-    if (index > -1) {
-      mockAnalyses.splice(index, 1);
-      return { rowCount: 1 };
-    }
-    return { rowCount: 0 };
-  }
-
-  return { rows: [], rowCount: 0 };
-};
-
+// PostgreSQL compatible MySQL Query Interceptor Wrapper
 const pool = {
-  query: async (text, params) => {
-    if (dbOffline) {
-      return mockQuery(text, params);
+  query: async (sql, params = []) => {
+    // 1. Convert PostgreSQL placeholders ($1, $2, ...) to MySQL ? placeholders
+    let mysqlSql = sql.replace(/\$\d+/g, '?');
+
+    console.log(`[DB QUERY] Executing SQL: "${mysqlSql}" with params:`, params);
+
+    // 2. Handle PostgreSQL-specific RETURNING * clauses
+    const hasReturning = sql.toUpperCase().includes('RETURNING');
+    if (hasReturning) {
+      // Strip out the RETURNING clause from the MySQL statement
+      mysqlSql = mysqlSql.replace(/RETURNING\s+\*/gi, '').trim();
+      
+      console.log(`[DB QUERY] Stripped RETURNING from insert. Executing clean insert: "${mysqlSql}"`);
+      // Execute the insert
+      const [insertResult] = await realPool.execute(mysqlSql, params);
+      const insertId = insertResult.insertId;
+      console.log(`[DB QUERY] Insert succeeded. Generated ID: ${insertId}. Fetching row...`);
+
+      // Extract table name to select the newly inserted row
+      const tableMatch = sql.match(/INSERT\s+INTO\s+(\w+)/i);
+      const tableName = tableMatch ? tableMatch[1] : '';
+
+      // Fetch the newly inserted row to mimic PG's RETURNING *
+      const [rows] = await realPool.execute(`SELECT * FROM ${tableName} WHERE id = ?`, [insertId]);
+      console.log(`[DB QUERY] Fetched returning row:`, rows);
+      return {
+        rows: rows,
+        rowCount: rows.length
+      };
     }
-    try {
-      return await realPool.query(text, params);
-    } catch (error) {
-      if (error.code === 'ECONNREFUSED' || error.message.includes('connect ECONNREFUSED')) {
-        console.warn('DB Connection refused, switching to mock DB fallback');
-        dbOffline = true;
-        return mockQuery(text, params);
-      }
-      throw error;
-    }
+
+    // 3. Execute normal MySQL query
+    const [rows] = await realPool.execute(mysqlSql, params);
+    console.log(`[DB QUERY] Query completed. Returned ${Array.isArray(rows) ? rows.length : 1} rows.`);
+    
+    return {
+      rows: Array.isArray(rows) ? rows : [rows],
+      rowCount: Array.isArray(rows) ? rows.length : (rows ? 1 : 0)
+    };
   }
 };
 

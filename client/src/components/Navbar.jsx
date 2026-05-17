@@ -1,11 +1,16 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Search, LogOut, User as UserIcon, Menu } from 'lucide-react';
 
 const Navbar = ({ onMenuClick }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const isAuthPage = ['/welcome', '/login', '/signup', '/forgot-password', '/reset-password'].some(path => 
+    location.pathname.startsWith(path)
+  );
 
   const handleLogout = async () => {
     await logout();
@@ -17,7 +22,7 @@ const Navbar = ({ onMenuClick }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center gap-4">
-            {user && (
+            {user && !isAuthPage && (
               <button
                 onClick={onMenuClick}
                 className="p-2 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 transition-colors"
@@ -37,7 +42,7 @@ const Navbar = ({ onMenuClick }) => {
           </div>
           
           <div className="flex items-center gap-4">
-            {user ? (
+            {user && !isAuthPage ? (
               <>
                 <Link to="/dashboard" className="text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors hidden sm:block">
                   Dashboard
@@ -52,6 +57,10 @@ const Navbar = ({ onMenuClick }) => {
                   <span className="font-medium text-sm">{user.fullName || user.email.split('@')[0]}</span>
                 </Link>
               </>
+            ) : user ? (
+              <Link to="/dashboard" className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition-all hover:shadow">
+                Go to Dashboard
+              </Link>
             ) : (
               <div className="flex items-center gap-4">
                 <Link to="/login" className="text-slate-600 hover:text-indigo-600 font-medium transition-colors">

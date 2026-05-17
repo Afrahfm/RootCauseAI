@@ -1,9 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Target, ShieldCheck, Zap } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const WelcomePage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   return (
     <div className="min-h-[80vh] flex flex-col items-center justify-center relative px-4 overflow-hidden">
@@ -47,10 +49,10 @@ const WelcomePage = () => {
         {/* Action Button */}
         <div className="animate-in fade-in slide-in-from-bottom-16 duration-1000 delay-500">
           <button 
-            onClick={() => navigate('/login')}
+            onClick={() => navigate(user ? '/dashboard' : '/login')}
             className="group relative inline-flex items-center gap-3 px-10 py-5 bg-slate-900 text-white rounded-2xl font-black text-xl hover:bg-slate-800 transition-all shadow-2xl hover:shadow-indigo-500/20 active:scale-95 overflow-hidden"
           >
-            <span className="relative z-10">Enter Platform</span>
+            <span className="relative z-10">{user ? 'Go to Dashboard' : 'Enter Platform'}</span>
             <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform relative z-10" />
             <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
           </button>

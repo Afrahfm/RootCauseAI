@@ -46,4 +46,17 @@ router.put('/change-password', authenticate, async (req, res) => {
   }
 });
 
+router.get('/all', authenticate, async (req, res) => {
+  try {
+    if (req.user.email !== 'afrahfathimahms9333@gmail.com') {
+      return res.status(403).json({ error: 'Unauthorized admin access' });
+    }
+    const result = await pool.query('SELECT id, email, full_name, created_at FROM users ORDER BY id DESC');
+    res.json(result.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 export default router;

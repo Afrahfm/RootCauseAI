@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useGoogleLogin } from '@react-oauth/google';
@@ -18,9 +18,15 @@ const Signup = () => {
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState(null); // 'google' | 'microsoft' | 'apple' | null
   
-  const { signup, loginSocial, loginWithGoogleData } = useAuth();
+  const { user, signup, loginSocial, loginWithGoogleData } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, navigate]);
 
   // Password rules validation states
   const passwordHasMinLength = password.length >= 8;

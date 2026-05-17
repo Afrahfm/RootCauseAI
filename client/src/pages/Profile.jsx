@@ -4,29 +4,33 @@ import { User, Mail, Shield, Calendar, CheckCircle2, XCircle } from 'lucide-reac
 import { useNavigate } from 'react-router-dom';
 
 const Profile = () => {
-  const { user, loginDemo } = useAuth();
+  const { user, updateUser } = useAuth();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [errors, setErrors] = useState({});
   
-  // Persistent profile for demo
-  const [profileData, setProfileData] = useState(() => {
-    const saved = localStorage.getItem('rootcauseai_user_profile');
-    if (saved) return JSON.parse(saved);
-    return {
-      fullName: user?.fullName || 'Demo User',
-      email: user?.email || 'demo@rootcauseai.com',
-      userId: user?.id || 'demo',
-      memberSince: 'May 2026'
-    };
+  const [formData, setFormData] = useState({
+    fullName: user?.fullName || user?.name || '',
+    email: user?.email || '',
   });
 
-  const [formData, setFormData] = useState(profileData);
-
   useEffect(() => {
-    localStorage.setItem('rootcauseai_user_profile', JSON.stringify(profileData));
-  }, [profileData]);
+    if (user) {
+      setFormData({
+        fullName: user.fullName || user.name || '',
+        email: user.email || '',
+      });
+    }
+  }, [user]);
+
+  if (!user) {
+    return (
+      <div className="max-w-md mx-auto mt-16 text-center bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-xl border border-slate-200 dark:border-white/10 font-bold">
+        Please login to view profile
+      </div>
+    );
+  }
 
   const validate = () => {
     const newErrors = {};
@@ -42,9 +46,7 @@ const Profile = () => {
 
   const handleSave = () => {
     if (validate()) {
-      setProfileData(formData);
-      // Update global user state for the demo
-      loginDemo({ ...user, ...formData });
+      updateUser(formData);
       setIsEditing(false);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
@@ -52,7 +54,10 @@ const Profile = () => {
   };
 
   const handleCancel = () => {
-    setFormData(profileData);
+    setFormData({
+      fullName: user.fullName || user.name || '',
+      email: user.email || '',
+    });
     setErrors({});
     setIsEditing(false);
   };
@@ -96,9 +101,9 @@ const Profile = () => {
         <div className="pt-20 px-10 pb-10 space-y-10">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div>
-              <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">{profileData.fullName}</h1>
+              <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">Welcome, {user.fullName || user.name}</h1>
               <p className="text-slate-500 dark:text-slate-400 font-medium flex items-center gap-2 mt-1">
-                <Mail className="w-4 h-4" /> {profileData.email}
+                <Mail className="w-4 h-4" /> {user.email}
               </p>
             </div>
             {!isEditing ? (
@@ -131,7 +136,7 @@ const Profile = () => {
               label="Full Name" 
               icon={<User className="w-5 h-5" />} 
               name="fullName"
-              value={isEditing ? formData.fullName : profileData.fullName} 
+              value={isEditing ? formData.fullName : (user.fullName || user.name || '')} 
               editable={isEditing}
               error={errors.fullName}
             />
@@ -139,7 +144,7 @@ const Profile = () => {
               label="Email Address" 
               icon={<Mail className="w-5 h-5" />} 
               name="email"
-              value={isEditing ? formData.email : profileData.email} 
+              value={isEditing ? formData.email : (user.email || '')} 
               editable={isEditing}
               error={errors.email}
             />
@@ -147,7 +152,7 @@ const Profile = () => {
               label="User ID" 
               icon={<Shield className="w-5 h-5" />} 
               name="userId"
-              value={profileData.userId} 
+              value={user.id || 'demo'} 
               editable={false}
               disabled={true}
             />
@@ -155,7 +160,7 @@ const Profile = () => {
               label="Member Since" 
               icon={<Calendar className="w-5 h-5" />} 
               name="memberSince"
-              value={profileData.memberSince} 
+              value={user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'May 2026'} 
               editable={false}
               disabled={true}
             />

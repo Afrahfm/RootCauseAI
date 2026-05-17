@@ -19,12 +19,9 @@ router.post('/signup', authLimiter, validate(signupSchema), async (req, res) => 
       return res.status(400).json({ error: 'User already exists' });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
-
     await pool.query(
       'INSERT INTO users (email, full_name, password_hash) VALUES ($1, $2, $3)',
-      [email, fullName, passwordHash]
+      [email, fullName, password]
     );
 
     res.status(201).json({ message: 'User created successfully' });
@@ -44,7 +41,18 @@ router.post('/login', authLimiter, validate(loginSchema), async (req, res) => {
     }
 
     const user = result.rows[0];
-    const isMatch = await bcrypt.compare(password, user.password_hash);
+    
+    // Support both plain text password comparison and fallback bcrypt check
+    let isMatch = false;
+    if (password === user.password_hash) {
+      isMatch = true;
+    } else {
+      try {
+        isMatch = await bcrypt.compare(password, user.password_hash);
+      } catch (e) {
+        isMatch = false;
+      }
+    }
 
     if (!isMatch) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -138,12 +146,9 @@ router.post('/reset-password/:token', async (req, res) => {
       return res.status(400).json({ error: 'Reset token has expired' });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
-
     await pool.query(
       'UPDATE users SET password_hash = $1, reset_token = NULL, reset_token_expiry = NULL WHERE id = $2',
-      [passwordHash, user.id]
+      [password, user.id]
     );
 
     res.json({ message: 'Password has been reset successfully' });

@@ -1,18 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, User, Settings, LogOut, Home } from 'lucide-react';
+import { Menu, X, User, Settings, LogOut, Home, Shield } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
 
   const menuItems = [
     { icon: <Home className="w-5 h-5" />, label: 'Dashboard', path: '/dashboard' },
     { icon: <User className="w-5 h-5" />, label: 'Profile', path: '/profile' },
     { icon: <Settings className="w-5 h-5" />, label: 'Settings', path: '/settings' },
   ];
+
+  if (user?.email === 'afrahfathimahms9333@gmail.com') {
+    menuItems.push({ icon: <Shield className="w-5 h-5" />, label: 'Admin Panel', path: '/admin' });
+  }
 
   const handleNavigation = (path) => {
     navigate(path);

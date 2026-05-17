@@ -9,23 +9,30 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  axios.defaults.baseURL = 'http://localhost:5000';
+  axios.defaults.baseURL = 'http://127.0.0.1:5000';
   axios.defaults.withCredentials = true;
 
   const checkAuth = async () => {
-    // 1. First check localStorage for a logged in user (keeps hackathon demo robust)
-    const storedUser = localStorage.getItem('rootcauseai_user') || localStorage.getItem('demo_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-      setLoading(false);
-      return;
-    }
-
-    // 2. Fallback/Verification check with backend if no local storage user
     try {
       const res = await axios.get('/api/auth/verify');
-      setUser(res.data.user);
+      if (res.data && res.data.user) {
+        const mappedUser = {
+          ...res.data.user,
+          fullName: res.data.user.fullName || res.data.user.full_name
+        };
+        localStorage.setItem('rootcauseai_user', JSON.stringify(mappedUser));
+        localStorage.setItem('rootcauseai_logged_in', 'true');
+        setUser(mappedUser);
+      } else {
+        localStorage.removeItem('rootcauseai_user');
+        localStorage.removeItem('demo_user');
+        localStorage.removeItem('rootcauseai_logged_in');
+        setUser(null);
+      }
     } catch (error) {
+      localStorage.removeItem('rootcauseai_user');
+      localStorage.removeItem('demo_user');
+      localStorage.removeItem('rootcauseai_logged_in');
       setUser(null);
     } finally {
       setLoading(false);
@@ -42,23 +49,7 @@ export const AuthProvider = ({ children }) => {
       return await loginDemo();
     }
 
-    // 2. Check localStorage custom registered users first (for 100% demo uptime)
-    const localUsers = JSON.parse(localStorage.getItem('rootcauseai_users') || '[]');
-    const matchedUser = localUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
-
-    if (matchedUser && matchedUser.password === password) {
-      // Establish backend session in parallel if backend is up
-      try {
-        await axios.post('/api/auth/login', { email, password });
-      } catch (err) {
-        console.warn('Backend login session failed, proceeding with local mock session', err);
-      }
-      
-      loginCustomUser(matchedUser);
-      return matchedUser;
-    }
-
-    // 3. Fallback to full backend authentications if not matching locally
+    // 2. Always attempt real backend login first to verify credentials against live MySQL
     try {
       const res = await axios.post('/api/auth/login', { email, password });
       const userData = {
@@ -66,13 +57,27 @@ export const AuthProvider = ({ children }) => {
         email: res.data.user.email,
         fullName: res.data.user.fullName || res.data.user.full_name,
         companyName: '',
-        createdAt: new Date().toISOString(),
+        createdAt: res.data.user.created_at || new Date().toISOString(),
         provider: 'email'
       };
       loginCustomUser(userData);
       return userData;
     } catch (error) {
       console.error('Backend login failed', error);
+      
+      // If it is an authentic credential failure (400, 401, 404, etc.) from the server, propagate it!
+      if (error.response && error.response.status !== 502 && error.response.status !== 504 && error.response.status !== 500) {
+        throw error;
+      }
+
+      // ONLY fallback if the server is completely down or returns a server crash error (500/502/504)
+      const localUsers = JSON.parse(localStorage.getItem('rootcauseai_users') || '[]');
+      const matchedUser = localUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+
+      if (matchedUser && matchedUser.password === password) {
+        loginCustomUser(matchedUser);
+        return matchedUser;
+      }
       throw error;
     }
   };
@@ -120,39 +125,63 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signup = async (fullName, email, password, companyName = '') => {
-    // 1. Create a professional user object
-    const newUser = {
-      id: Date.now().toString(),
-      fullName,
-      email,
-      password, // Stored as-is for demo matching
-      companyName,
-      createdAt: new Date().toISOString(),
-      isSocialLogin: false,
-      provider: 'email'
-    };
-
-    // 2. Save locally
-    const localUsers = JSON.parse(localStorage.getItem('rootcauseai_users') || '[]');
-    // Check if user already exists locally
-    if (localUsers.some(u => u.email.toLowerCase() === email.toLowerCase())) {
-      throw new Error('User already exists');
-    }
-    localUsers.push(newUser);
-    localStorage.setItem('rootcauseai_users', JSON.stringify(localUsers));
-
-    // 3. Save to backend database in parallel
+    // 1. Always attempt real backend signup first
     try {
       await axios.post('/api/auth/signup', { fullName, email, password });
-      // Establish backend session cookie
-      await axios.post('/api/auth/login', { email, password });
-    } catch (error) {
-      console.warn('Backend signup/login failed, fallback to local storage mode', error);
-    }
+      
+      // Establish backend session cookie and get real database user ID from MySQL
+      const loginRes = await axios.post('/api/auth/login', { email, password });
+      if (loginRes.data && loginRes.data.user) {
+        const userData = {
+          id: loginRes.data.user.id,
+          email: loginRes.data.user.email,
+          fullName: loginRes.data.user.fullName || loginRes.data.user.full_name || fullName,
+          companyName,
+          createdAt: loginRes.data.user.created_at || new Date().toISOString(),
+          isSocialLogin: false,
+          provider: 'email'
+        };
 
-    // 4. Auto-login on success
-    loginCustomUser(newUser);
-    return newUser;
+        // Cache locally for offline backup
+        const localUsers = JSON.parse(localStorage.getItem('rootcauseai_users') || '[]');
+        if (!localUsers.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+          localUsers.push({ ...userData, password });
+          localStorage.setItem('rootcauseai_users', JSON.stringify(localUsers));
+        }
+
+        loginCustomUser(userData);
+        return userData;
+      }
+    } catch (error) {
+      console.error('Backend signup/login failed', error);
+      
+      // If it is an authentic validation or user exists error (400, 409 etc.) from the server, propagate it!
+      if (error.response && error.response.status !== 502 && error.response.status !== 504 && error.response.status !== 500) {
+        throw error;
+      }
+
+      // ONLY fallback to offline mock mode if the backend is physically offline or returned a server crash
+      const newUser = {
+        id: Date.now().toString(),
+        fullName,
+        email,
+        password,
+        companyName,
+        createdAt: new Date().toISOString(),
+        isSocialLogin: false,
+        provider: 'email'
+      };
+
+      const localUsers = JSON.parse(localStorage.getItem('rootcauseai_users') || '[]');
+      if (localUsers.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+        throw new Error('User already exists');
+      }
+      localUsers.push(newUser);
+      localStorage.setItem('rootcauseai_users', JSON.stringify(localUsers));
+
+      loginCustomUser(newUser);
+      return newUser;
+    }
   };
 
   const loginSocial = async (provider) => {
@@ -252,11 +281,19 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('demo_user');
     localStorage.removeItem('rootcauseai_user');
     localStorage.removeItem('rootcauseai_logged_in');
+    localStorage.removeItem('rootcauseai_user_profile');
     setUser(null);
   };
 
+  const updateUser = (updatedData) => {
+    const updatedUser = { ...user, ...updatedData };
+    localStorage.setItem('rootcauseai_user', JSON.stringify(updatedUser));
+    localStorage.setItem('demo_user', JSON.stringify(updatedUser));
+    setUser(updatedUser);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, loginDemo, signup, loginSocial, loginWithGoogleData, logout, checkAuth, loading }}>
+    <AuthContext.Provider value={{ user, login, loginDemo, signup, loginSocial, loginWithGoogleData, logout, checkAuth, updateUser, loading }}>
       {!loading && children}
     </AuthContext.Provider>
   );
