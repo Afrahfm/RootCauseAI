@@ -8,7 +8,6 @@ const router = express.Router();
 // POST /api/analyze - Analyze a client problem
 router.post('/analyze', authenticate, async (req, res) => {
   try {
-    // Accept both userInput and user_input (frontend compatibility)
     const userInput = req.body.userInput || req.body.user_input || req.body.problem;
 
     if (!userInput) {
