@@ -80,6 +80,13 @@ router.post('/login', authLimiter, validate(loginSchema), async (req, res) => {
 
 router.post('/login-demo', async (req, res) => {
   try {
+    // Ensure Demo User exists in the database to prevent foreign key errors on analysis insertion
+    try {
+      await pool.query("INSERT IGNORE INTO users (id, email, full_name, password_hash) VALUES (999, 'demo@rootcause.ai', 'Demo User', 'demo_hash')");
+    } catch (dbError) {
+      console.warn("Could not upsert demo user, foreign keys might fail:", dbError.message);
+    }
+
     const user = { id: 999, email: 'demo@rootcause.ai', fullName: 'Demo User' };
     const token = jwt.sign(
       { id: user.id, email: user.email },
