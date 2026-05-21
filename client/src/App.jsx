@@ -14,6 +14,7 @@ import WelcomePage from './pages/WelcomePage';
 import Settings from './pages/Settings';
 import Sidebar from './components/Sidebar';
 import AdminPanel from './pages/AdminPanel';
+import Chatbot from './components/Chatbot';
 
 const ProtectedRoute = ({ children }) => {
   const { user } = useAuth();
@@ -78,6 +79,7 @@ const AppContent = () => {
           />
         </Routes>
       </main>
+      <Chatbot />
     </div>
   );
 };

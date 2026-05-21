@@ -1,11 +1,13 @@
-import { analyzeProblem } from './backend/services/aiService.js';
+import pool from './backend/db/pool.js';
 
-(async () => {
+async function test() {
   try {
-    console.log('Testing analyzeProblem...');
-    const result = await analyzeProblem("We need an AI chatbot");
-    console.log('Result:', result);
+    const [rows] = await pool.query('SELECT * FROM users WHERE email = ?', ['test@example.com']);
+    console.log('Success:', rows);
   } catch (err) {
-    console.error('Crash:', err);
+    console.error('Error:', err.message);
   }
-})();
+  process.exit(0);
+}
+
+test();

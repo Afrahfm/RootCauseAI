@@ -20,19 +20,19 @@ export const AuthProvider = ({ children }) => {
           ...res.data.user,
           fullName: res.data.user.fullName || res.data.user.full_name
         };
-        localStorage.setItem('rootcauseai_user', JSON.stringify(mappedUser));
-        localStorage.setItem('rootcauseai_logged_in', 'true');
+        sessionStorage.setItem('rootcauseai_user', JSON.stringify(mappedUser));
+        sessionStorage.setItem('rootcauseai_logged_in', 'true');
         setUser(mappedUser);
       } else {
-        localStorage.removeItem('rootcauseai_user');
-        localStorage.removeItem('demo_user');
-        localStorage.removeItem('rootcauseai_logged_in');
+        sessionStorage.removeItem('rootcauseai_user');
+        sessionStorage.removeItem('demo_user');
+        sessionStorage.removeItem('rootcauseai_logged_in');
         setUser(null);
       }
     } catch (error) {
-      localStorage.removeItem('rootcauseai_user');
-      localStorage.removeItem('demo_user');
-      localStorage.removeItem('rootcauseai_logged_in');
+      sessionStorage.removeItem('rootcauseai_user');
+      sessionStorage.removeItem('demo_user');
+      sessionStorage.removeItem('rootcauseai_logged_in');
       setUser(null);
     } finally {
       setLoading(false);
@@ -67,7 +67,7 @@ export const AuthProvider = ({ children }) => {
       
       // If it is an authentic credential failure (400, 401, 404, etc.) from the server, propagate it!
       if (error.response && error.response.status !== 502 && error.response.status !== 504 && error.response.status !== 500) {
-        throw error;
+        throw new Error(error.response.data?.error || error.response.data?.message || error.message);
       }
 
       // ONLY fallback if the server is completely down or returns a server crash error (500/502/504)
@@ -94,9 +94,9 @@ export const AuthProvider = ({ children }) => {
         provider: 'email'
       };
       
-      localStorage.setItem('demo_user', JSON.stringify(userData));
-      localStorage.setItem('rootcauseai_user', JSON.stringify(userData));
-      localStorage.setItem('rootcauseai_logged_in', 'true');
+      sessionStorage.setItem('demo_user', JSON.stringify(userData));
+      sessionStorage.setItem('rootcauseai_user', JSON.stringify(userData));
+      sessionStorage.setItem('rootcauseai_logged_in', 'true');
       setUser(userData);
       return userData;
     } catch (error) {
@@ -109,18 +109,18 @@ export const AuthProvider = ({ children }) => {
         createdAt: new Date().toISOString(),
         provider: 'email'
       };
-      localStorage.setItem('demo_user', JSON.stringify(fallbackUser));
-      localStorage.setItem('rootcauseai_user', JSON.stringify(fallbackUser));
-      localStorage.setItem('rootcauseai_logged_in', 'true');
+      sessionStorage.setItem('demo_user', JSON.stringify(fallbackUser));
+      sessionStorage.setItem('rootcauseai_user', JSON.stringify(fallbackUser));
+      sessionStorage.setItem('rootcauseai_logged_in', 'true');
       setUser(fallbackUser);
       return fallbackUser;
     }
   };
 
   const loginCustomUser = (userData) => {
-    localStorage.setItem('rootcauseai_user', JSON.stringify(userData));
-    localStorage.setItem('demo_user', JSON.stringify(userData));
-    localStorage.setItem('rootcauseai_logged_in', 'true');
+    sessionStorage.setItem('rootcauseai_user', JSON.stringify(userData));
+    sessionStorage.setItem('demo_user', JSON.stringify(userData));
+    sessionStorage.setItem('rootcauseai_logged_in', 'true');
     setUser(userData);
   };
 
@@ -157,7 +157,7 @@ export const AuthProvider = ({ children }) => {
       
       // If it is an authentic validation or user exists error (400, 409 etc.) from the server, propagate it!
       if (error.response && error.response.status !== 502 && error.response.status !== 504 && error.response.status !== 500) {
-        throw error;
+        throw new Error(error.response.data?.error || error.response.data?.message || error.message);
       }
 
       // ONLY fallback to offline mock mode if the backend is physically offline or returned a server crash
@@ -278,17 +278,17 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Backend logout failed', error);
     }
-    localStorage.removeItem('demo_user');
-    localStorage.removeItem('rootcauseai_user');
-    localStorage.removeItem('rootcauseai_logged_in');
-    localStorage.removeItem('rootcauseai_user_profile');
+    sessionStorage.removeItem('demo_user');
+    sessionStorage.removeItem('rootcauseai_user');
+    sessionStorage.removeItem('rootcauseai_logged_in');
+    sessionStorage.removeItem('rootcauseai_user_profile');
     setUser(null);
   };
 
   const updateUser = (updatedData) => {
     const updatedUser = { ...user, ...updatedData };
-    localStorage.setItem('rootcauseai_user', JSON.stringify(updatedUser));
-    localStorage.setItem('demo_user', JSON.stringify(updatedUser));
+    sessionStorage.setItem('rootcauseai_user', JSON.stringify(updatedUser));
+    sessionStorage.setItem('demo_user', JSON.stringify(updatedUser));
     setUser(updatedUser);
   };
 

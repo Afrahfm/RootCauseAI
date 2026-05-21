@@ -22,11 +22,11 @@ router.post('/analyze', authenticate, async (req, res) => {
 
     console.log('🤖 AI Result:', aiResult);
 
-    // Save to database using $1 placeholders which pool.js safely intercepts
-    const result = await pool.query(
+    // Save to database using native mysql2 ? placeholders
+    const [insertResult] = await pool.query(
       `INSERT INTO analyses 
       (user_id, user_input, hidden_problem, wrong_solution, wrong_solution_cost, right_solution, right_solution_cost, savings, tech_stack) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         req.user.id,
         userInput,
@@ -40,7 +40,9 @@ router.post('/analyze', authenticate, async (req, res) => {
       ]
     );
 
-    res.status(201).json(result.rows[0]);
+    const [rows] = await pool.query('SELECT * FROM analyses WHERE id = ?', [insertResult.insertId]);
+
+    res.status(201).json(rows[0]);
   } catch (error) {
     console.error('❌ Analysis error:', error);
     res.status(500).json({ error: 'Server error during analysis', details: error.message });
@@ -50,11 +52,11 @@ router.post('/analyze', authenticate, async (req, res) => {
 // GET /api/analyses - Get user's analysis history
 router.get('/analyses', authenticate, async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM analyses WHERE user_id = $1 ORDER BY id DESC',
+    const [rows] = await pool.query(
+      'SELECT * FROM analyses WHERE user_id = ? ORDER BY id DESC',
       [req.user.id]
     );
-    res.json(result.rows);
+    res.json(rows);
   } catch (error) {
     console.error('❌ History fetch error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -64,14 +66,14 @@ router.get('/analyses', authenticate, async (req, res) => {
 // GET /api/analyses/:id - Get single analysis
 router.get('/analyses/:id', authenticate, async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM analyses WHERE id = $1 AND user_id = $2',
+    const [rows] = await pool.query(
+      'SELECT * FROM analyses WHERE id = ? AND user_id = ?',
       [req.params.id, req.user.id]
     );
-    if (result.rows.length === 0) {
+    if (rows.length === 0) {
       return res.status(404).json({ error: 'Analysis not found' });
     }
-    res.json(result.rows[0]);
+    res.json(rows[0]);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Server error' });
@@ -81,11 +83,11 @@ router.get('/analyses/:id', authenticate, async (req, res) => {
 // DELETE /api/analyses/:id - Delete analysis
 router.delete('/analyses/:id', authenticate, async (req, res) => {
   try {
-    const result = await pool.query(
-      'DELETE FROM analyses WHERE id = $1 AND user_id = $2',
+    const [result] = await pool.query(
+      'DELETE FROM analyses WHERE id = ? AND user_id = ?',
       [req.params.id, req.user.id]
     );
-    if (result.rowCount === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Analysis not found or unauthorized' });
     }
     res.json({ message: 'Analysis deleted successfully' });

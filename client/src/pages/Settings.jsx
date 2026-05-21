@@ -36,7 +36,7 @@ const Settings = () => {
 
   const handleExportData = () => {
     const userData = {
-      profile: JSON.parse(localStorage.getItem('rootcauseai_user_profile') || '{}'),
+      profile: JSON.parse(sessionStorage.getItem('rootcauseai_user_profile') || '{}'),
       settings: settings,
       history: JSON.parse(localStorage.getItem('rootcauseai_history') || '[]'),
       exportedAt: new Date().toISOString()

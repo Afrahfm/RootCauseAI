@@ -1,62 +1,108 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Target, ShieldCheck, Zap } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
 
 const WelcomePage = () => {
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { user } = useAuth();
-
-  return (
-    <div className="min-h-[80vh] flex flex-col items-center justify-center relative px-4 overflow-hidden">
-      {/* Background Decorative Elements */}
-      <div className="absolute top-1/4 -left-20 w-72 h-72 bg-indigo-500/10 rounded-full blur-3xl animate-pulse"></div>
-      <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-700"></div>
-
-      <div className="max-w-4xl w-full text-center z-10 space-y-12">
-        {/* Header Section */}
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 text-sm font-bold uppercase tracking-widest mb-4">
-            <Target className="w-4 h-4" />
-            Strategic Problem Discovery
+  
+  // Loading messages that rotate
+  const loadingMessages = [
+    "🔍 Analyzing your request...",
+    "💡 Finding hidden problems...",
+    "🎯 Preparing AI detective...",
+    "✨ Almost ready...",
+    "🚀 Launching RootCauseAI..."
+  ];
+  
+  const [currentMessage, setCurrentMessage] = useState(0);
+  
+  // Rotate messages during loading
+  React.useEffect(() => {
+    if (!isLoading) return;
+    
+    const interval = setInterval(() => {
+      setCurrentMessage(prev => (prev + 1) % loadingMessages.length);
+    }, 600);
+    
+    return () => clearInterval(interval);
+  }, [isLoading, loadingMessages.length]);
+  
+  const handleEnter = () => {
+    setIsLoading(true);
+    
+    // Simulate loading for 2 seconds then navigate
+    setTimeout(() => {
+      navigate('/login');
+    }, 2000);
+  };
+  
+  // Loading Screen
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900">
+        <div className="text-center animate-fade-in">
+          {/* Pulsing Logo */}
+          <div className="mb-8 animate-pulse">
+            <div className="text-7xl mb-4">🎯</div>
+            <h1 className="text-3xl font-bold text-white">RootCauseAI</h1>
           </div>
-          <h1 className="text-6xl md:text-7xl font-black text-slate-900 tracking-tight leading-tight">
-            Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">RootCauseAI</span>
-          </h1>
-          <p className="text-xl md:text-2xl text-slate-600 font-medium max-w-2xl mx-auto leading-relaxed">
-            Stop building the wrong thing. Start finding the right one. 
-            Identify the core issues draining your budget before you write a single line of code.
+          
+          {/* Loading Spinner */}
+          <div className="flex justify-center mb-6">
+            <div className="w-12 h-12 border-4 border-green-400 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+          
+          {/* Rotating Message */}
+          <div className="min-h-[80px]">
+            <p className="text-xl text-white font-medium animate-pulse">
+              {loadingMessages[currentMessage]}
+            </p>
+          </div>
+          
+          {/* Fun Fact / Tip */}
+          <div className="mt-8 max-w-md mx-auto p-4 bg-white/10 rounded-lg backdrop-blur-sm">
+            <p className="text-green-300 text-sm">
+              💡 Did you know?
+            </p>
+            <p className="text-gray-200 text-sm mt-1">
+              Companies waste 60-80% of their IT budget building solutions for misdiagnosed problems.
+            </p>
+          </div>
+          
+          {/* Progress Bar */}
+          <div className="w-64 mx-auto mt-8">
+            <div className="h-1 bg-gray-700 rounded-full overflow-hidden">
+              <div className="h-full bg-green-500 rounded-full animate-progress"></div>
+            </div>
+          </div>
+          
+          <p className="text-gray-400 text-sm mt-4">
+            Stop building the wrong thing. Start finding the right one.
           </p>
         </div>
-
-        {/* Feature Highlights */}
-        <div className="grid md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-200">
-          {[
-            { icon: <ShieldCheck className="w-6 h-6" />, title: "Risk Mitigation", desc: "Identify architectural flaws early." },
-            { icon: <Zap className="w-6 h-6" />, title: "Rapid Analysis", desc: "AI-powered insight in seconds." },
-            { icon: <Target className="w-6 h-6" />, title: "Precision Focus", desc: "Solve problems that actually matter." }
-          ].map((feature, i) => (
-            <div key={i} className="bg-white/40 backdrop-blur-md p-6 rounded-2xl border border-white/60 shadow-sm hover:shadow-md transition-all group">
-              <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 mb-4 group-hover:scale-110 transition-transform">
-                {feature.icon}
-              </div>
-              <h3 className="font-bold text-slate-900 mb-1">{feature.title}</h3>
-              <p className="text-sm text-slate-500 font-medium">{feature.desc}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Action Button */}
-        <div className="animate-in fade-in slide-in-from-bottom-16 duration-1000 delay-500">
-          <button 
-            onClick={() => navigate(user ? '/dashboard' : '/login')}
-            className="group relative inline-flex items-center gap-3 px-10 py-5 bg-slate-900 text-white rounded-2xl font-black text-xl hover:bg-slate-800 transition-all shadow-2xl hover:shadow-indigo-500/20 active:scale-95 overflow-hidden"
-          >
-            <span className="relative z-10">{user ? 'Go to Dashboard' : 'Enter Platform'}</span>
-            <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform relative z-10" />
-            <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          </button>
-        </div>
+      </div>
+    );
+  }
+  
+  // Original Welcome Page
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900">
+      <div className="text-center p-8 rounded-2xl bg-white/10 backdrop-blur-lg shadow-2xl max-w-md mx-4">
+        <div className="text-6xl mb-4">🎯</div>
+        <h1 className="text-4xl font-bold text-white mb-2">
+          Welcome to <span className="text-green-400">RootCauseAI</span>
+        </h1>
+        <p className="text-xl text-gray-200 mb-8">
+          Stop building the wrong thing.
+          <br />
+          Start finding the right one.
+        </p>
+        <button
+          onClick={handleEnter}
+          className="px-8 py-3 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
+        >
+          Enter Platform →
+        </button>
       </div>
     </div>
   );
