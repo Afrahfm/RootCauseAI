@@ -56,7 +56,10 @@ export const AuthProvider = ({ children }) => {
         id: res.data.user.id,
         email: res.data.user.email,
         fullName: res.data.user.fullName || res.data.user.full_name,
-        companyName: '',
+        userType: res.data.user.userType || res.data.user.user_type || 'startup',
+        companyName: res.data.user.companyName || res.data.user.company_name || '',
+        employeeId: res.data.user.employeeId || res.data.user.employee_id || '',
+        isVerified: res.data.user.isVerified || res.data.user.is_verified || false,
         createdAt: res.data.user.created_at || new Date().toISOString(),
         provider: 'email'
       };
@@ -124,10 +127,10 @@ export const AuthProvider = ({ children }) => {
     setUser(userData);
   };
 
-  const signup = async (fullName, email, password, companyName = '') => {
+  const signup = async (fullName, email, password, companyName = '', employeeId = '') => {
     // 1. Always attempt real backend signup first
     try {
-      await axios.post('/api/auth/signup', { fullName, email, password });
+      await axios.post('/api/auth/signup', { fullName, email, password, companyName, employeeId });
       
       // Establish backend session cookie and get real database user ID from MySQL
       const loginRes = await axios.post('/api/auth/login', { email, password });
@@ -136,7 +139,10 @@ export const AuthProvider = ({ children }) => {
           id: loginRes.data.user.id,
           email: loginRes.data.user.email,
           fullName: loginRes.data.user.fullName || loginRes.data.user.full_name || fullName,
-          companyName,
+          userType: loginRes.data.user.userType || loginRes.data.user.user_type || 'startup',
+          companyName: loginRes.data.user.companyName || loginRes.data.user.company_name || companyName,
+          employeeId: loginRes.data.user.employeeId || loginRes.data.user.employee_id || employeeId,
+          isVerified: loginRes.data.user.isVerified || loginRes.data.user.is_verified || false,
           createdAt: loginRes.data.user.created_at || new Date().toISOString(),
           isSocialLogin: false,
           provider: 'email'
@@ -161,12 +167,107 @@ export const AuthProvider = ({ children }) => {
       }
 
       // ONLY fallback to offline mock mode if the backend is physically offline or returned a server crash
+      
+      // A. Personal email domain validation
+      const domainMatch = email.match(/@(.+)$/);
+      if (!domainMatch) {
+        throw new Error('Invalid email address format');
+      }
+      const domain = domainMatch[1].toLowerCase().trim();
+
+      const personalDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com', 'icloud.com'];
+      if (personalDomains.includes(domain)) {
+        throw new Error('Personal email domains are not allowed');
+      }
+
+      // B. Pre-approved company lookup
+      const mockApprovedCompanies = [
+        {
+          company_name: 'TechStartup Inc',
+          company_domain: 'techstartup.com',
+          company_type: 'startup',
+          employee_id_pattern: 'TS[0-9]{6}',
+          requires_employee_id: true
+        },
+        {
+          company_name: 'Innovate Solutions',
+          company_domain: 'innovate.io',
+          company_type: 'startup',
+          employee_id_pattern: 'IN[0-9]{5}[A-Z]{2}',
+          requires_employee_id: true
+        },
+        {
+          company_name: 'Creative Labs',
+          company_domain: 'creative.io',
+          company_type: 'startup',
+          employee_id_pattern: 'CL[0-9]{7}',
+          requires_employee_id: true
+        },
+        {
+          company_name: 'Future Systems',
+          company_domain: 'futuresys.com',
+          company_type: 'startup',
+          employee_id_pattern: 'FS[0-9]{4}[A-Z]{3}',
+          requires_employee_id: true
+        },
+        {
+          company_name: 'Tata Consultancy Services',
+          company_domain: 'tcs.com',
+          company_type: 'enterprise',
+          employee_id_pattern: '^[0-9]{6,8}$',
+          requires_employee_id: true
+        },
+        {
+          company_name: 'Cognizant',
+          company_domain: 'cognizant.com',
+          company_type: 'enterprise',
+          employee_id_pattern: '^[0-9]{7,9}$',
+          requires_employee_id: true
+        },
+        {
+          company_name: 'Zoho',
+          company_domain: 'zoho.com',
+          company_type: 'enterprise',
+          employee_id_pattern: '^ZOHO[0-9]{6}$',
+          requires_employee_id: true
+        },
+        {
+          company_name: 'Hexaware Technologies',
+          company_domain: 'hexaware.com',
+          company_type: 'enterprise',
+          employee_id_pattern: '^HX[0-9]{6}$',
+          requires_employee_id: true
+        }
+      ];
+
+      const matchingCompany = mockApprovedCompanies.find(c => c.company_domain === domain);
+      if (!matchingCompany) {
+        throw new Error('Company domain is not pre-approved');
+      }
+
+      // C. Employee ID verification
+      if (matchingCompany.requires_employee_id) {
+        if (!employeeId) {
+          throw new Error('Employee ID is required for this company');
+        }
+        let pattern = matchingCompany.employee_id_pattern;
+        if (!pattern.startsWith('^')) pattern = '^' + pattern;
+        if (!pattern.endsWith('$')) pattern = pattern + '$';
+        const regex = new RegExp(pattern);
+        if (!regex.test(employeeId)) {
+          throw new Error('Invalid Employee ID format');
+        }
+      }
+
       const newUser = {
         id: Date.now().toString(),
         fullName,
         email,
         password,
-        companyName,
+        userType: matchingCompany.company_type,
+        companyName: matchingCompany.company_name,
+        employeeId: employeeId || null,
+        isVerified: true,
         createdAt: new Date().toISOString(),
         isSocialLogin: false,
         provider: 'email'
@@ -184,7 +285,50 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const sendVerificationCode = async (email) => {
+    try {
+      const res = await axios.post('/api/auth/send-code', { email });
+      return res.data;
+    } catch (error) {
+      console.error('Failed to send verification code', error);
+      throw new Error(error.response?.data?.error || error.message || 'Failed to dispatch verification code.');
+    }
+  };
+
+  const verifyCode = async (fullName, email, password, companyName, employeeId, code) => {
+    try {
+      const res = await axios.post('/api/auth/verify-code', {
+        fullName,
+        email,
+        password,
+        companyName,
+        employeeId,
+        code
+      });
+      const userData = {
+        id: res.data.user.id,
+        email: res.data.user.email,
+        fullName: res.data.user.fullName || res.data.user.full_name,
+        userType: res.data.user.userType || res.data.user.user_type || 'startup',
+        companyName: res.data.user.companyName || res.data.user.company_name || companyName,
+        employeeId: res.data.user.employeeId || res.data.user.employee_id || employeeId,
+        isVerified: res.data.user.isVerified || res.data.user.is_verified || false,
+        createdAt: res.data.user.created_at || new Date().toISOString(),
+        provider: 'email'
+      };
+      loginCustomUser(userData);
+      return userData;
+    } catch (error) {
+      console.error('Code verification failed', error);
+      throw new Error(error.response?.data?.error || error.message || 'Code verification failed.');
+    }
+  };
+
   const loginSocial = async (provider) => {
+    if (provider === 'linkedin') {
+      window.location.href = 'http://localhost:5000/api/auth/linkedin';
+      return;
+    }
     // Simulate social profile data
     let socialUser = {};
     if (provider === 'google') {
@@ -293,7 +437,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, loginDemo, signup, loginSocial, loginWithGoogleData, logout, checkAuth, updateUser, loading }}>
+    <AuthContext.Provider value={{ user, login, loginDemo, signup, loginSocial, loginWithGoogleData, logout, checkAuth, updateUser, loading, sendVerificationCode, verifyCode }}>
       {!loading && children}
     </AuthContext.Provider>
   );

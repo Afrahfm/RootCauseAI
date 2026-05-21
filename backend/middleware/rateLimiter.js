@@ -9,8 +9,8 @@ export const apiLimiter = rateLimit({
 });
 
 export const authLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 10,
+  windowMs: 15 * 60 * 1000, // Reduced window to 15 mins
+  max: process.env.NODE_ENV === 'production' ? 15 : 1000, // Generous 1000 requests in development/hackathon demo
   message: { error: 'Too many authentication attempts from this IP, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,

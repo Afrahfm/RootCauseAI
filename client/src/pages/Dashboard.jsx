@@ -55,7 +55,19 @@ const Dashboard = () => {
     <div className="max-w-5xl mx-auto">
       <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-white/10">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Welcome, {user.fullName || 'Detective'}</h1>
+          <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5 flex-wrap">
+            Welcome, {user.fullName || 'Detective'}
+            {user.userType === 'startup' && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-black bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full shadow-sm border border-amber-400/25">
+                🚀 Startup Employee {user.companyName ? `(${user.companyName})` : ''}
+              </span>
+            )}
+            {user.userType === 'enterprise' && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-black bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full shadow-sm border border-blue-500/25">
+                🏢 Enterprise Employee {user.companyName ? `(${user.companyName})` : ''}
+              </span>
+            )}
+          </h1>
           <p className="text-slate-500 dark:text-slate-400 font-medium">Ready to uncover some hidden problems?</p>
         </div>
         <div className="flex items-center gap-3 bg-slate-50 dark:bg-white/5 px-4 py-2 rounded-xl border border-slate-200 dark:border-white/10">

@@ -15,6 +15,7 @@ import Settings from './pages/Settings';
 import Sidebar from './components/Sidebar';
 import AdminPanel from './pages/AdminPanel';
 import Chatbot from './components/Chatbot';
+import LinkedInMock from './pages/LinkedInMock';
 
 const ProtectedRoute = ({ children }) => {
   const { user } = useAuth();
@@ -77,6 +78,7 @@ const AppContent = () => {
               </ProtectedRoute>
             } 
           />
+          <Route path="/linkedin-mock" element={<LinkedInMock />} />
         </Routes>
       </main>
       <Chatbot />
