@@ -16,6 +16,7 @@ import Sidebar from './components/Sidebar';
 import AdminPanel from './pages/AdminPanel';
 import Chatbot from './components/Chatbot';
 import LinkedInMock from './pages/LinkedInMock';
+import VerifyOtp from './pages/VerifyOtp';
 
 const ProtectedRoute = ({ children }) => {
   const { user } = useAuth();
@@ -30,7 +31,7 @@ const AppContent = () => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
-  const isAuthPage = ['/welcome', '/login', '/signup', '/forgot-password', '/reset-password'].some(path => 
+  const isAuthPage = ['/welcome', '/login', '/signup', '/forgot-password', '/reset-password', '/verify-otp'].some(path => 
     location.pathname.startsWith(path)
   );
 
@@ -79,6 +80,7 @@ const AppContent = () => {
             } 
           />
           <Route path="/linkedin-mock" element={<LinkedInMock />} />
+          <Route path="/verify-otp" element={<VerifyOtp />} />
         </Routes>
       </main>
       <Chatbot />

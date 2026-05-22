@@ -18,7 +18,13 @@ export const AuthProvider = ({ children }) => {
       if (res.data && res.data.user) {
         const mappedUser = {
           ...res.data.user,
-          fullName: res.data.user.fullName || res.data.user.full_name
+          fullName: res.data.user.fullName || res.data.user.full_name,
+          trustLevel: res.data.user.trustLevel || res.data.user.trust_level || 'low',
+          adminApproved: res.data.user.adminApproved !== undefined ? res.data.user.adminApproved : !!res.data.user.admin_approved,
+          role: res.data.user.role || 'employee',
+          companyId: res.data.user.companyId || res.data.user.company_id || null,
+          hrApproved: res.data.user.hrApproved !== undefined ? res.data.user.hrApproved : !!res.data.user.hr_approved,
+          approvalStage: res.data.user.approvalStage || res.data.user.approval_stage || 'pending'
         };
         sessionStorage.setItem('rootcauseai_user', JSON.stringify(mappedUser));
         sessionStorage.setItem('rootcauseai_logged_in', 'true');
@@ -60,6 +66,12 @@ export const AuthProvider = ({ children }) => {
         companyName: res.data.user.companyName || res.data.user.company_name || '',
         employeeId: res.data.user.employeeId || res.data.user.employee_id || '',
         isVerified: res.data.user.isVerified || res.data.user.is_verified || false,
+        trustLevel: res.data.user.trustLevel || res.data.user.trust_level || 'low',
+        adminApproved: res.data.user.adminApproved !== undefined ? res.data.user.adminApproved : !!res.data.user.admin_approved,
+        role: res.data.user.role || 'employee',
+        companyId: res.data.user.companyId || res.data.user.company_id || null,
+        hrApproved: res.data.user.hrApproved !== undefined ? res.data.user.hrApproved : !!res.data.user.hr_approved,
+        approvalStage: res.data.user.approvalStage || res.data.user.approval_stage || 'pending',
         createdAt: res.data.user.created_at || new Date().toISOString(),
         provider: 'email'
       };
@@ -143,6 +155,12 @@ export const AuthProvider = ({ children }) => {
           companyName: loginRes.data.user.companyName || loginRes.data.user.company_name || companyName,
           employeeId: loginRes.data.user.employeeId || loginRes.data.user.employee_id || employeeId,
           isVerified: loginRes.data.user.isVerified || loginRes.data.user.is_verified || false,
+          trustLevel: loginRes.data.user.trustLevel || loginRes.data.user.trust_level || 'low',
+          adminApproved: loginRes.data.user.adminApproved !== undefined ? loginRes.data.user.adminApproved : !!loginRes.data.user.admin_approved,
+          role: loginRes.data.user.role || 'employee',
+          companyId: loginRes.data.user.companyId || loginRes.data.user.company_id || null,
+          hrApproved: loginRes.data.user.hrApproved !== undefined ? loginRes.data.user.hrApproved : !!loginRes.data.user.hr_approved,
+          approvalStage: loginRes.data.user.approvalStage || loginRes.data.user.approval_stage || 'pending',
           createdAt: loginRes.data.user.created_at || new Date().toISOString(),
           isSocialLogin: false,
           provider: 'email'
@@ -313,6 +331,12 @@ export const AuthProvider = ({ children }) => {
         companyName: res.data.user.companyName || res.data.user.company_name || companyName,
         employeeId: res.data.user.employeeId || res.data.user.employee_id || employeeId,
         isVerified: res.data.user.isVerified || res.data.user.is_verified || false,
+        trustLevel: res.data.user.trustLevel || res.data.user.trust_level || 'low',
+        adminApproved: res.data.user.adminApproved !== undefined ? res.data.user.adminApproved : !!res.data.user.admin_approved,
+        role: res.data.user.role || 'employee',
+        companyId: res.data.user.companyId || res.data.user.company_id || null,
+        hrApproved: res.data.user.hrApproved !== undefined ? res.data.user.hrApproved : !!res.data.user.hr_approved,
+        approvalStage: res.data.user.approvalStage || res.data.user.approval_stage || 'pending',
         createdAt: res.data.user.created_at || new Date().toISOString(),
         provider: 'email'
       };

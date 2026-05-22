@@ -8,7 +8,7 @@ const Navbar = ({ onMenuClick }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isAuthPage = ['/welcome', '/login', '/signup', '/forgot-password', '/reset-password'].some(path => 
+  const isAuthPage = ['/welcome', '/login', '/signup', '/forgot-password', '/reset-password', '/verify-otp'].some(path => 
     location.pathname.startsWith(path)
   );
 

@@ -14,8 +14,10 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { icon: <Settings className="w-5 h-5" />, label: 'Settings', path: '/settings' },
   ];
 
-  if (user?.email === 'afrahfathimahms9333@gmail.com') {
+  if (user?.role === 'admin' || user?.email === 'afrahfathimahms9333@gmail.com') {
     menuItems.push({ icon: <Shield className="w-5 h-5" />, label: 'Admin Panel', path: '/admin' });
+  } else if (user?.role === 'hr') {
+    menuItems.push({ icon: <Shield className="w-5 h-5" />, label: 'HR Portal', path: '/admin' });
   }
 
   const handleNavigation = (path) => {

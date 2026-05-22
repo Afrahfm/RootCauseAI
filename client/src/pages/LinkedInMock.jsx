@@ -1,36 +1,47 @@
 import React, { useState } from 'react';
-import { ShieldCheck, UserCheck, AlertCircle, Sparkles, Send, Building } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
+import { ShieldCheck, UserCheck, AlertCircle, Sparkles, Building, Loader2 } from 'lucide-react';
 
 const LinkedInMock = () => {
+  const navigate = useNavigate();
+  const { checkAuth } = useAuth();
+
   const [fullName, setFullName] = useState('Alex Rivera');
-  const [email, setEmail] = useState('alex.rivera@zoho.com');
-  const [companyName, setCompanyName] = useState('Zoho');
-  const [verifiedWorkplace, setVerifiedWorkplace] = useState(true);
+  const [email, setEmail] = useState('founder@demostartup1.com');
+  const [companyName, setCompanyName] = useState('Demo Startup 1');
+  const [verificationLevel, setVerificationLevel] = useState('VERIFIED_WORKPLACE');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   // Pre-configured profiles for hackathon presentation demo
   const demoProfiles = [
     {
       name: 'Alex Rivera',
-      email: 'alex.rivera@zoho.com',
-      company: 'Zoho',
+      email: 'founder@demostartup1.com',
+      company: 'Demo Startup 1',
       verified: true,
-      badge: '🏢 Zoho (Enterprise) - Approved',
-      color: 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300'
+      verificationLevel: 'VERIFIED_WORKPLACE',
+      badge: '🚀 Startup Founder (Badge) - Auto Approve',
+      color: 'border-cyan-500 bg-cyan-50/50 dark:bg-cyan-950/20 text-cyan-700 dark:text-cyan-300'
     },
     {
       name: 'Sarah Jenkins',
       email: 'sarah@tcs.com',
       company: 'TCS',
       verified: true,
-      badge: '🏢 TCS (Enterprise) - Approved',
+      verificationLevel: 'VERIFIED_IDENTITY',
+      badge: '🏢 TCS (Enterprise Badge) - Auto Approve',
       color: 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300'
     },
     {
-      name: 'Startup Founder',
-      email: 'founder@demostartup1.com',
-      company: 'Demo Startup 1',
-      verified: true,
-      badge: '🚀 Startup 1 - Approved',
+      name: 'John Startup',
+      email: 'employee@demostartup2.com',
+      company: 'Demo Startup 2',
+      verified: false,
+      verificationLevel: 'No verification',
+      badge: '⚠️ Startup Employee (No Badge) - Needs OTP',
       color: 'border-amber-500 bg-amber-50/50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300'
     },
     {
@@ -38,7 +49,8 @@ const LinkedInMock = () => {
       email: 'hacker@gmail.com',
       company: 'Fake Corp',
       verified: false,
-      badge: '⚠️ Personal Gmail - Blocked',
+      verificationLevel: 'No verification',
+      badge: '🚫 Personal Gmail - Blocked',
       color: 'border-red-500 bg-red-50/50 dark:bg-red-950/20 text-red-700 dark:text-red-300'
     },
     {
@@ -46,6 +58,7 @@ const LinkedInMock = () => {
       email: 'hacker@unknown.com',
       company: 'Unknown LLC',
       verified: true,
+      verificationLevel: 'VERIFIED_WORKPLACE',
       badge: '🚫 Unapproved Domain - Blocked',
       color: 'border-slate-500 bg-slate-50/50 dark:bg-slate-950/20 text-slate-700 dark:text-slate-300'
     }
@@ -55,21 +68,35 @@ const LinkedInMock = () => {
     setFullName(profile.name);
     setEmail(profile.email);
     setCompanyName(profile.company);
-    setVerifiedWorkplace(profile.verified);
+    setVerificationLevel(profile.verificationLevel || 'VERIFIED_WORKPLACE');
   };
 
-  const handleAuthorize = () => {
-    const linkedinId = `li_mock_${Date.now()}`;
-    const query = new URLSearchParams({
-      email,
-      fullName,
-      companyName,
-      verifiedWorkplace: verifiedWorkplace.toString(),
-      linkedinId
-    }).toString();
+  const handleAuthorize = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await axios.post('/api/auth/linkedin-mock', {
+        email,
+        name: fullName,
+        company: companyName,
+        hasBadge: verificationLevel !== 'No verification',
+        badgeLevel: verificationLevel
+      });
 
-    // Redirect to the backend oauth callback
-    window.location.href = `http://localhost:5000/api/auth/linkedin/callback?${query}`;
+      if (res.data.autoApprove) {
+        // Auto-approved! Set session and navigate to dashboard
+        await checkAuth(); // sets user state from token cookie
+        navigate('/dashboard?auth_success=true');
+      } else if (res.data.requiresOtp) {
+        // Redirect to dedicated OTP verification page
+        navigate(`/verify-otp?email=${encodeURIComponent(email)}&name=${encodeURIComponent(fullName)}&company=${encodeURIComponent(companyName)}&linkedinId=li_mock_${Date.now()}`);
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.error || err.message || 'Authentication failed.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -101,6 +128,12 @@ const LinkedInMock = () => {
             <p className="text-slate-500 dark:text-slate-400 text-sm mt-1.5 font-medium">Verify employee workplace status securely using LinkedIn r_verify protocol.</p>
           </div>
 
+          {error && (
+            <div className="p-4 mb-4 bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30 rounded-2xl text-xs font-bold text-rose-600 dark:text-rose-400 animate-shake">
+              {error}
+            </div>
+          )}
+
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-black text-slate-400 dark:text-slate-500 mb-2 uppercase tracking-wider ml-1">Profile Full Name</label>
@@ -110,6 +143,7 @@ const LinkedInMock = () => {
                 onChange={(e) => setFullName(e.target.value)}
                 className="w-full px-4 py-3.5 border-2 border-slate-100 dark:border-white/5 focus:border-[#0a66c2] dark:focus:border-[#0a66c2] rounded-2xl outline-none transition-all bg-slate-50/50 dark:bg-slate-950/50 text-slate-900 dark:text-white font-bold"
                 placeholder="Alex Rivera"
+                disabled={loading}
               />
             </div>
 
@@ -120,7 +154,8 @@ const LinkedInMock = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3.5 border-2 border-slate-100 dark:border-white/5 focus:border-[#0a66c2] dark:focus:border-[#0a66c2] rounded-2xl outline-none transition-all bg-slate-50/50 dark:bg-slate-950/50 text-slate-900 dark:text-white font-bold"
-                placeholder="alex.rivera@zoho.com"
+                placeholder="founder@demostartup1.com"
+                disabled={loading}
               />
             </div>
 
@@ -133,39 +168,83 @@ const LinkedInMock = () => {
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
                   className="w-full pl-12 pr-4 py-3.5 border-2 border-slate-100 dark:border-white/5 focus:border-[#0a66c2] dark:focus:border-[#0a66c2] rounded-2xl outline-none transition-all bg-slate-50/50 dark:bg-slate-950/50 text-slate-900 dark:text-white font-bold"
-                  placeholder="Zoho"
+                  placeholder="Demo Startup 1"
+                  disabled={loading}
                 />
               </div>
             </div>
 
-            {/* Verification Status Selector */}
-            <div className="p-4 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-200/50 dark:border-white/5 mt-2">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h4 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">LinkedIn Verified workplace badge</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">LinkedIn verifies work history against company databases.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setVerifiedWorkplace(!verifiedWorkplace)}
-                  className={`w-12 h-6.5 rounded-full p-1 transition-all duration-300 relative ${
-                    verifiedWorkplace ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
-                  }`}
-                >
-                  <div
-                    className={`w-4.5 h-4.5 bg-white rounded-full transition-all shadow ${
-                      verifiedWorkplace ? 'translate-x-5.5' : 'translate-x-0'
+            {/* Redesigned Premium Verification Level Selector */}
+            <div className="p-5 bg-slate-50/50 dark:bg-white/5 rounded-3xl border border-slate-200/60 dark:border-white/5 mt-2 space-y-4">
+              <div>
+                <h4 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">LinkedIn Verified Badge Level</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Choose the level of employment or identity verification status to simulate.</p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2.5">
+                {[
+                  {
+                    value: 'No verification',
+                    label: 'No Verification (Unverified)',
+                    trust: '⚠️ LOW - Need OTP',
+                    desc: 'Workplace history is unverified or lacks a confirmed badge.',
+                    color: 'border-amber-200 bg-amber-50/20 text-amber-700 dark:border-amber-900/30 dark:bg-amber-950/10 dark:text-amber-400',
+                    activeColor: 'ring-2 ring-amber-500 border-amber-500'
+                  },
+                  {
+                    value: 'VERIFIED_WORKPLACE',
+                    label: 'Verified Workplace Badge',
+                    trust: '✅ HIGH - Auto Approve',
+                    desc: 'LinkedIn verified they work at the pre-approved startup/enterprise.',
+                    color: 'border-blue-200 bg-blue-50/20 text-blue-700 dark:border-blue-900/30 dark:bg-blue-950/10 dark:text-blue-400',
+                    activeColor: 'ring-2 ring-blue-500 border-blue-500'
+                  },
+                  {
+                    value: 'VERIFIED_IDENTITY',
+                    label: 'Verified Identity Badge',
+                    trust: '✅✅ VERY HIGH - Auto Approve',
+                    desc: 'LinkedIn verified both workplace and identity using official government ID.',
+                    color: 'border-emerald-200 bg-emerald-50/20 text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/10 dark:text-emerald-400',
+                    activeColor: 'ring-2 ring-emerald-500 border-emerald-500'
+                  }
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setVerificationLevel(opt.value)}
+                    className={`w-full text-left p-3.5 border rounded-2xl transition-all duration-300 relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 cursor-pointer bg-white dark:bg-slate-900 ${
+                      verificationLevel === opt.value
+                        ? opt.activeColor
+                        : 'border-slate-100 dark:border-white/5 hover:border-slate-200 dark:hover:border-white/10 shadow-sm'
                     }`}
-                  ></div>
-                </button>
+                    disabled={loading}
+                  >
+                    <div>
+                      <span className="text-sm font-black text-slate-800 dark:text-white block">{opt.label}</span>
+                      <span className="text-xs text-slate-400 font-medium block mt-0.5">{opt.desc}</span>
+                    </div>
+                    <span className={`inline-flex self-start sm:self-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${opt.color}`}>
+                      {opt.trust}
+                    </span>
+                  </button>
+                ))}
               </div>
             </div>
 
             <button
               onClick={handleAuthorize}
               className="w-full bg-[#0a66c2] hover:bg-[#004b87] text-white py-4 rounded-2xl font-black text-lg shadow-lg hover:shadow-blue-500/20 transition-all mt-4 flex items-center justify-center gap-2 cursor-pointer transform active:scale-95"
+              disabled={loading}
             >
-              <ShieldCheck className="w-5 h-5" /> Authorize Workplace Check & Sign In
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" /> Authorizing...
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-5 h-5" /> Authorize Workplace Check & Sign In
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -183,8 +262,9 @@ const LinkedInMock = () => {
                   className={`w-full text-left p-3.5 border-2 rounded-2xl flex items-center justify-between transition-all duration-300 hover:scale-[1.01] active:scale-95 bg-white dark:bg-slate-900 cursor-pointer shadow-sm ${
                     email === profile.email ? profile.color : 'border-slate-100 dark:border-white/5 hover:border-slate-200 dark:hover:border-white/10'
                   }`}
+                  disabled={loading}
                 >
-                  <div>
+                  <div className="w-full">
                     <h4 className="text-sm font-black text-slate-800 dark:text-white leading-tight">{profile.name}</h4>
                     <p className="text-xs text-slate-400 font-mono mt-0.5">{profile.email}</p>
                     <div className="mt-2.5">
@@ -205,7 +285,7 @@ const LinkedInMock = () => {
               <ShieldCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" /> Fraud Protection Guard
             </h4>
             <p className="text-xs text-blue-700/80 dark:text-blue-400/80 mt-1 font-medium leading-relaxed">
-              When clicked, this mock redirects to the server's OAuth callback handler to execute complete server-side user registration, JWT generation, and MySQL audit logging.
+              When clicked, this mock submits employee details directly to the custom hackathon server validation endpoint. Badge-holding startup founders are approved instantly, while standard employees generate a local secure OTP.
             </p>
           </div>
         </div>

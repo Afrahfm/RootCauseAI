@@ -3,6 +3,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
+import verifyRoutes from './routes/verify.js';
 import userRoutes from './routes/user.js';
 import analyzeRoutes from './routes/analyze.js';
 import chatRoutes from './routes/chat.js';
@@ -26,6 +27,7 @@ app.use((req, res, next) => {
 });
 
 // Routes
+app.use('/api/auth', verifyRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/chat', chatRoutes);

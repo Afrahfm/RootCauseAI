@@ -107,6 +107,30 @@ const router = express.Router();
 // POST /api/analyze - Analyze a client problem
 router.post('/analyze', authenticate, async (req, res) => {
   try {
+    // 1. Fetch user role and approval stage from DB
+    const [userRows] = await pool.query('SELECT role, approval_stage, trust_level FROM users WHERE id = ?', [req.user.id]);
+    const dbUser = userRows[0];
+
+    if (!dbUser) {
+      return res.status(403).json({ error: 'Access Restricted', message: 'User record not found.' });
+    }
+
+    // Only employees are gated by two-stage approval. Admins/HR have default access.
+    if (dbUser.role === 'employee' && dbUser.approval_stage !== 'fully_approved') {
+      let customMsg = 'Your account is pending approval. You will have full access once approved.';
+      if (dbUser.approval_stage === 'pending') {
+        customMsg = 'Your account is pending verification by your company HR (Stage 1/2).';
+      } else if (dbUser.approval_stage === 'hr_approved') {
+        customMsg = 'Your account has been verified by your HR. Awaiting final administrator approval (Stage 2/2).';
+      }
+      
+      console.log(`🚫 Access restricted: User ${req.user.id} is in stage: ${dbUser.approval_stage}`);
+      return res.status(403).json({ 
+        error: 'Access Restricted', 
+        message: customMsg 
+      });
+    }
+
     // Accept both userInput and user_input (frontend compatibility)
     const userInput = req.body.userInput || req.body.user_input || req.body.problem;
 
